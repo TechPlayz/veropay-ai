@@ -1,27 +1,11 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import DeclarativeBase, sessionmaker
-
-DATABASE_URL = "sqlite:///./gigshield.db"
-
-engine = create_engine(
-    DATABASE_URL,
-    connect_args={"check_same_thread": False},
-)
-
-SessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=engine,
-)
+import sqlite3
+from pathlib import Path
 
 
-class Base(DeclarativeBase):
-    pass
+DATABASE_NAME = Path(__file__).with_name("gigshield.db")
 
 
 def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+    conn = sqlite3.connect(DATABASE_NAME)
+    conn.row_factory = sqlite3.Row
+    return conn

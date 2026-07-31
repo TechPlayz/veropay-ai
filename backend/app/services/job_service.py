@@ -11,30 +11,37 @@ def _row_to_dict(row) -> Dict[str, Any]:
     return data
 
 
-def get_all_jobs() -> List[Dict[str, Any]]:
+def get_all_jobs(user_id: int) -> List[Dict[str, Any]]:
     conn = get_db()
     try:
-        rows = conn.execute("SELECT * FROM jobs ORDER BY created_at DESC").fetchall()
+        rows = conn.execute(
+            "SELECT * FROM jobs WHERE user_id = ? ORDER BY created_at DESC",
+            (user_id,),
+        ).fetchall()
         return [_row_to_dict(row) for row in rows]
     finally:
         conn.close()
 
 
-def get_job_by_id(job_id: int) -> Optional[Dict[str, Any]]:
+def get_job_by_id(job_id: int, user_id: int) -> Optional[Dict[str, Any]]:
     conn = get_db()
     try:
-        row = conn.execute("SELECT * FROM jobs WHERE id = ?", (job_id,)).fetchone()
+        row = conn.execute(
+            "SELECT * FROM jobs WHERE id = ? AND user_id = ?",
+            (job_id, user_id),
+        ).fetchone()
         return _row_to_dict(row) if row else None
     finally:
         conn.close()
 
 
-def create_job(job: JobCreate) -> Dict[str, Any]:
+def create_job(job: JobCreate, user_id: int) -> Dict[str, Any]:
     conn = get_db()
     try:
         cursor = conn.execute(
             """
             INSERT INTO jobs (
+                user_id,
                 platform,
                 fare,
                 distance,
@@ -45,9 +52,10 @@ def create_job(job: JobCreate) -> Dict[str, Any]:
                 shift,
                 ride_date
             )
-            VALUES (?, ?, ?, ?, NULL, NULL, NULL, ?, ?)
+            VALUES (?, ?, ?, ?, ?, NULL, NULL, NULL, ?, ?)
             """,
             (
+                user_id,
                 job.platform,
                 job.fare,
                 job.distance,
@@ -66,10 +74,10 @@ def create_job(job: JobCreate) -> Dict[str, Any]:
         conn.close()
 
 
-def delete_job(job_id: int) -> bool:
+def delete_job(job_id: int, user_id: int) -> bool:
     conn = get_db()
     try:
-        cursor = conn.execute("DELETE FROM jobs WHERE id = ?", (job_id,))
+        cursor = conn.execute("DELETE FROM jobs WHERE id = ? AND user_id = ?", (job_id, user_id))
         conn.commit()
         return cursor.rowcount > 0
     finally:
