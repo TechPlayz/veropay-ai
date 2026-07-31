@@ -6,9 +6,10 @@ function Navbar() {
   const location = useLocation();
 
   const links = [
-    { name: "Dashboard", path: "/dashboard" },
-    { name: "Add Ride", path: "/add-ride" },
-    { name: "AI Assistant", path: "/chat" },
+  { name: "Dashboard", path: "/dashboard" },
+  { name: "Add Ride", path: "/add-ride" },
+  { name: "History", path: "/history" },
+  { name: "AI Assistant", path: "/chat" },
   ];
 
   return (
