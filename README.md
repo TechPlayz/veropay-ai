@@ -18,12 +18,12 @@ Build an AI-powered companion for gig workers that goes beyond simple earnings t
 
 ## 👥 Team
 
-**Team Name:** [YOUR TEAM NAME]
+**Team Name:** RUNTIME ERRORS
 
 **Team Members:**
-- [Member 1]
-- [Member 2]
-- [Member 3]
+- AKSHAY KS
+- SHAMANTH S ULLOOR
+- PRATHAM PRAVEEN PRABHU
 
 ---
 
