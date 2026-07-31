@@ -39,6 +39,16 @@ def _safe_create_unique_index(cursor, index_name, table_name, column_name):
         pass
 
 
+_SEED_VEHICLES = [
+    ("Honda",  "Activa 6G",     "Petrol", 45.0, 1.20),
+    ("TVS",    "Jupiter",       "Petrol", 48.0, 1.10),
+    ("Suzuki", "Access 125",    "Petrol", 45.0, 1.20),
+    ("Hero",   "Splendor Plus", "Petrol", 60.0, 1.00),
+    ("Honda",  "Shine",         "Petrol", 55.0, 1.30),
+    ("Bajaj",  "Pulsar 150",    "Petrol", 45.0, 1.50),
+]
+
+
 def init_db():
     conn = get_db()
     cursor = conn.cursor()
@@ -96,6 +106,51 @@ def init_db():
         )
         """
     )
+
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS vehicles (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            brand TEXT NOT NULL,
+            model TEXT NOT NULL,
+            fuel_type TEXT NOT NULL,
+            average_mileage REAL NOT NULL,
+            maintenance_cost_per_km REAL NOT NULL
+        )
+        """
+    )
+
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS rides (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            platform TEXT NOT NULL,
+            city TEXT,
+            offered_fare REAL NOT NULL,
+            distance_km REAL NOT NULL,
+            duration_minutes INTEGER NOT NULL,
+            traffic_level TEXT,
+            weather TEXT,
+            fuel_cost REAL,
+            maintenance_cost REAL,
+            time_cost REAL,
+            expected_fare REAL,
+            net_profit REAL,
+            fairness_score REAL,
+            recommendation TEXT,
+            ai_explanation TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+
+    # Seed reference vehicles if the table is empty
+    if cursor.execute("SELECT COUNT(*) FROM vehicles").fetchone()[0] == 0:
+        cursor.executemany(
+            "INSERT INTO vehicles (brand, model, fuel_type, average_mileage, maintenance_cost_per_km) "
+            "VALUES (?, ?, ?, ?, ?)",
+            _SEED_VEHICLES,
+        )
 
     conn.commit()
     conn.close()

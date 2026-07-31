@@ -1,19 +1,19 @@
-import os
+"""
+ai_service.py
+-------------
+Thin adapter between the chat route and gemini_service.
+
+All Gemini interactions go through gemini_service.chat_with_system().
+This module owns only the system prompt and the error taxonomy exposed
+to the HTTP layer.
+"""
+
+import logging
 from collections.abc import Sequence
-from pathlib import Path
 
-from dotenv import load_dotenv
+from app.services.gemini_service import chat_with_system
 
-load_dotenv(Path(__file__).resolve().parents[2] / ".env")
-
-
-class AIConfigurationError(Exception):
-    """Raised when the server has no Gemini API key configured."""
-
-
-class AIProviderError(Exception):
-    """Raised when Gemini cannot complete a chat request."""
-
+logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = (
     "You are VeroPay AI, a helpful assistant for gig workers in India. "
@@ -25,54 +25,55 @@ SYSTEM_PROMPT = (
 )
 
 
+class AIConfigurationError(Exception):
+    """Raised when Gemini is not configured (no API key)."""
+
+
+class AIProviderError(Exception):
+    """Raised when Gemini is configured but the request fails."""
+
+
 def generate_chat_response(
     messages: Sequence[dict[str, str]],
     ride_context: str,
     use_web_search: bool,
 ) -> str:
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        raise AIConfigurationError(
-            "AI is not configured yet. Add GEMINI_API_KEY to backend/.env and restart the server."
-        )
+    # Build Gemini history from all messages except the last
+    # Gemini uses "user" / "model" roles (not "assistant")
+    history = [
+        {"role": "model" if m["role"] == "assistant" else "user", "parts": [m["content"]]}
+        for m in messages[:-1]
+    ]
+    last_message = messages[-1]["content"]
+
+    system_instruction = (
+        f"{SYSTEM_PROMPT}\n\n"
+        f"Recent ride-analysis context:\n{ride_context}"
+    )
 
     try:
-        import google.generativeai as genai
-
-        genai.configure(api_key=api_key)
-        model_name = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
-
-        # Build tools list — Gemini supports Google Search grounding
-        tools = ["google_search_retrieval"] if use_web_search else []
-
-        model = genai.GenerativeModel(
-            model_name=model_name,
-            system_instruction=(
-                f"{SYSTEM_PROMPT}\n\n"
-                f"Recent ride-analysis context:\n{ride_context}"
-            ),
-            tools=tools if tools else None,
+        answer = chat_with_system(
+            system_instruction=system_instruction,
+            history=history,
+            message=last_message,
+            use_web_search=use_web_search,
         )
-
-        # Convert messages to Gemini format
-        # Gemini uses "user" and "model" roles (not "assistant")
-        history = []
-        for msg in messages[:-1]:
-            role = "model" if msg["role"] == "assistant" else "user"
-            history.append({"role": role, "parts": [msg["content"]]})
-
-        chat = model.start_chat(history=history)
-        last_message = messages[-1]["content"]
-        response = chat.send_message(last_message)
-
-        answer = response.text.strip()
-        if not answer:
-            raise AIProviderError("Gemini returned an empty response.")
-        return answer
-
-    except AIConfigurationError:
-        raise
-    except Exception as error:
+    except RuntimeError as exc:
+        # gemini_service raises RuntimeError when the API key is absent
+        raise AIConfigurationError(
+            "AI is not configured yet. Add GEMINI_API_KEY to backend/.env and restart the server."
+        ) from exc
+    except Exception as exc:
+        logger.exception(
+            "generate_chat_response failed: %s: %s",
+            type(exc).__name__,
+            exc,
+        )
         raise AIProviderError(
             "The AI service could not answer right now. Please try again."
-        ) from error
+        ) from exc
+
+    if not answer:
+        raise AIProviderError("Gemini returned an empty response.")
+
+    return answer

@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 # "gemini-1.5-flash-latest" resolves to the newest 1.5 Flash via the old SDK.
 # When the project upgrades to google-genai, change this to
 # "gemini-2.5-flash" and update _get_client().
-_MODEL_NAME = os.getenv("GEMINI_MODEL", "gemini-1.5-flash-latest")
+_MODEL_NAME = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
 
 _GENERATION_CONFIG = {
     "temperature": 0,
@@ -278,3 +278,48 @@ def chat(history: List[Dict[str, str]], message: str) -> Optional[str]:
     except Exception:
         logger.exception("Gemini chat failed.")
         return None
+
+
+def chat_with_system(
+    system_instruction: str,
+    history: List[Dict[str, str]],
+    message: str,
+    use_web_search: bool = False,
+) -> Optional[str]:
+    """
+    Start a chat session with a custom system instruction and optional
+    Google Search grounding.  Creates a short-lived model instance so the
+    system prompt can include per-request context (e.g. recent ride data).
+
+    history format: [{"role": "user"|"model", "parts": ["..."]}]
+
+    Returns the model's reply string, or None on failure.
+    Raises RuntimeError when the API key is absent (caller maps to 503).
+    """
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise RuntimeError("GEMINI_API_KEY is not configured.")
+
+    try:
+        import google.generativeai as genai  # noqa: PLC0415
+
+        genai.configure(api_key=api_key)
+        tools = ["google_search_retrieval"] if use_web_search else None
+        model = genai.GenerativeModel(
+            model_name=_MODEL_NAME,
+            system_instruction=system_instruction,
+            tools=tools,
+        )
+        session = model.start_chat(history=history)
+        response = session.send_message(message)
+        text = (response.text or "").strip()
+        return text or None
+    except RuntimeError:
+        raise
+    except Exception:
+        logger.exception(
+            "Gemini chat_with_system failed (model=%s, web_search=%s).",
+            _MODEL_NAME,
+            use_web_search,
+        )
+        raise
