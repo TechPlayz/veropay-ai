@@ -6,7 +6,6 @@ from app.database import get_db
 USER_COLUMNS = {
     "phone": "TEXT",
     "password_hash": "TEXT",
-    "rc_file_path": "TEXT",
     "vehicle_make": "TEXT",
     "vehicle_model": "TEXT",
     "vehicle_year": "INTEGER",
@@ -52,7 +51,6 @@ def init_db():
             email TEXT UNIQUE,
             phone TEXT,
             password_hash TEXT,
-            rc_file_path TEXT,
             vehicle_make TEXT,
             vehicle_model TEXT,
             vehicle_year INTEGER,

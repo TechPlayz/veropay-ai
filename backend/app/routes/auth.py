@@ -1,7 +1,5 @@
-import os
 from pathlib import Path
 from typing import Optional
-from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 
@@ -14,8 +12,6 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 ALLOWED_RC_EXTENSIONS = {".pdf", ".png", ".jpg", ".jpeg"}
 ALLOWED_RC_CONTENT_TYPES = {"application/pdf", "image/png", "image/jpeg"}
 MAX_RC_SIZE_BYTES = 10 * 1024 * 1024
-APP_DIR = Path(__file__).resolve().parents[1]
-UPLOAD_DIR = APP_DIR / "uploads" / "rc"
 
 
 @router.post("/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
@@ -32,7 +28,7 @@ async def register(
     mileage: Optional[float] = Form(None),
 ):
     file_bytes = await _validate_rc_upload(rc)
-    rc_path = _save_rc_file(rc.filename or "rc", file_bytes)
+    # RC bytes are processed in memory and never written to disk
     extracted_vehicle = vehicle_service.extract_vehicle_info(file_bytes, rc.content_type)
 
     try:
@@ -41,7 +37,6 @@ async def register(
             email=email,
             phone=phone,
             password=password,
-            rc_file_path=os.path.relpath(rc_path, APP_DIR),
             vehicle_make=vehicle_make,
             vehicle_model=vehicle_model,
             vehicle_year=vehicle_year,
@@ -49,11 +44,7 @@ async def register(
             mileage=mileage,
         )
     except ValueError as exc:
-        _remove_file(rc_path)
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
-    except Exception:
-        _remove_file(rc_path)
-        raise
 
     return {
         "access_token": auth_service.create_access_token(user["id"]),
@@ -105,17 +96,3 @@ async def _validate_rc_upload(rc: UploadFile) -> bytes:
     return file_bytes
 
 
-def _save_rc_file(original_filename: str, file_bytes: bytes) -> Path:
-    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-    extension = Path(original_filename).suffix.lower()
-    rc_path = UPLOAD_DIR / f"{uuid4().hex}{extension}"
-    with rc_path.open("wb") as destination:
-        destination.write(file_bytes)
-    return rc_path
-
-
-def _remove_file(path: Path) -> None:
-    try:
-        path.unlink(missing_ok=True)
-    except OSError:
-        pass
