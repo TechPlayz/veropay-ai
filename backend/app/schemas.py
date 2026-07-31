@@ -1,5 +1,7 @@
 from datetime import datetime
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -48,3 +50,17 @@ class RideAnalysisResponse(BaseModel):
     recommendation: str
     ai_explanation: str
     created_at: datetime
+
+
+class ChatMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=4000)
+
+
+class ChatRequest(BaseModel):
+    messages: list[ChatMessage] = Field(min_length=1, max_length=12)
+    use_web_search: bool = False
+
+
+class ChatResponse(BaseModel):
+    response: str
