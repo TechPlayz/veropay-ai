@@ -37,9 +37,25 @@ def startup() -> None:
     finally:
         db.close()
 
+<<<<<<< HEAD
+=======
+from routes.jobs import router as jobs_router
+from routes.ocr import router as ocr_router
+
+
+app = FastAPI(
+    title="VeroPay API",
+    version="1.0.0",
+)
+>>>>>>> 33ed76129b64975d1f4facaba2e464bffbc7307d
+
+app.include_router(jobs_router)
+app.include_router(ocr_router)
+
 
 @app.get("/")
 def root():
+<<<<<<< HEAD
     return {"message": "VeroPay fairness API is running"}
 
 
@@ -114,3 +130,6 @@ def get_dashboard(db: Session = Depends(get_db)):
         "total_rides": count,
         "rejected_ride_suggestions": sum(ride.recommendation == "Reject" for ride in rides),
     }
+=======
+    return {"message": "Backend running"}
+>>>>>>> 33ed76129b64975d1f4facaba2e464bffbc7307d
