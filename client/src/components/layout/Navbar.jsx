@@ -10,6 +10,7 @@ function Navbar() {
   { name: "Add Ride", path: "/add-ride" },
   { name: "History", path: "/history" },
   { name: "AI Assistant", path: "/chat" },
+  { name: "Login", path: "/login" },
   ];
 
   return (
