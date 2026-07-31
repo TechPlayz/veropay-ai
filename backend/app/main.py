@@ -1,4 +1,6 @@
 from datetime import datetime, time
+from dotenv import load_dotenv
+
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -19,15 +21,18 @@ from .services.ai_service import AIConfigurationError, AIProviderError, generate
 from .services.fairness_engine import calculate_fairness
 from .services.location_service import LocationServiceError, get_route_info
 
-app = FastAPI(title="VeroPay API", version="1.0.0")
+app = FastAPI(
+    title="VeroPay API",
+    version="1.0.0",
+)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],
     allow_credentials=True,
-    allow_methods=["GET", "POST"],
-    allow_headers=["Content-Type", "Authorization"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
-
 
 def seed_reference_data(db: Session) -> None:
     if db.query(User).first() is None:
@@ -53,6 +58,13 @@ def startup() -> None:
     finally:
         db.close()
 
+
+init_db()
+
+app.include_router(auth_router)
+app.include_router(dashboard_router)
+app.include_router(jobs_router)
+app.include_router(ocr_router)
 
 @app.get("/")
 def root():
