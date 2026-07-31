@@ -27,15 +27,6 @@ class VehicleOCRResponse(BaseModel):
     mileage: Optional[float] = None
 
 
-def _read_bytes(file: UploadFile, allowed_types: set) -> bytes:
-    if file.content_type and file.content_type not in allowed_types:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Unsupported file type.",
-        )
-    return file
-
-
 @router.post("/ride", response_model=RideOCRResponse)
 async def ocr_ride(file: UploadFile = File(...)):
     if file.content_type and file.content_type not in ALLOWED_IMAGE_TYPES | {"application/octet-stream"}:
