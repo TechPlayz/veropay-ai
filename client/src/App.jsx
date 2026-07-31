@@ -5,6 +5,8 @@ import Dashboard from "./pages/Dashboard";
 import AddRide from "./pages/AddRide";
 import Chat from "./pages/Chat";
 import Profile from "./pages/Profile";
+import RideAnalysis from "./pages/RideAnalysis";
+import RideHistory from "./pages/RideHistory";
 
 function App() {
   return (
@@ -13,6 +15,8 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/add-ride" element={<AddRide />} />
+        <Route path="/analysis" element={<RideAnalysis />} />
+        <Route path="/history" element={<RideHistory />} />
         <Route path="/chat" element={<Chat />} />
         <Route path="/profile" element={<Profile />} />
       </Routes>
