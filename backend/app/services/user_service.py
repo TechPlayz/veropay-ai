@@ -18,7 +18,6 @@ def create_user(
     email: str,
     phone: str,
     password: str,
-    rc_file_path: str,
     vehicle_make: Optional[str] = None,
     vehicle_model: Optional[str] = None,
     vehicle_year: Optional[int] = None,
@@ -34,21 +33,19 @@ def create_user(
                 email,
                 phone,
                 password_hash,
-                rc_file_path,
                 vehicle_make,
                 vehicle_model,
                 vehicle_year,
                 fuel_type,
                 mileage
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 name.strip(),
                 email.strip().lower(),
                 phone.strip(),
                 hash_password(password),
-                rc_file_path,
                 _clean_optional_text(vehicle_make),
                 _clean_optional_text(vehicle_model),
                 vehicle_year,

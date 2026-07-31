@@ -22,7 +22,6 @@ class UserResponse(VehicleInfo):
     name: str
     email: str
     phone: Optional[str] = None
-    rc_file_path: Optional[str] = None
     created_at: datetime
 
 

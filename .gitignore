@@ -1,4 +1,45 @@
-backend/.env
-backend/veropay.db
+# Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Environment files
+.env
+.env.*
+
+# Logs
+*.log
+logs/
+
+# Uploads
+uploads/
+backend/app/uploads/
+
+# Python caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Editors
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Databases
+*.sqlite
+*.sqlite3
+*.db
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
