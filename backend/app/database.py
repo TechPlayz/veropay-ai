@@ -1,28 +1,11 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import DeclarativeBase, sessionmaker
-
-# This path is relative to the directory from which Uvicorn is started.
-DATABASE_URL = "sqlite:///./veropay.db"
-
-engine = create_engine(
-    DATABASE_URL,
-    connect_args={"check_same_thread": False},
-)
-
-SessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=engine,
-)
+import sqlite3
+from pathlib import Path
 
 
-class Base(DeclarativeBase):
-    pass
+DATABASE_NAME = Path(__file__).with_name("gigshield.db")
 
 
 def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+    conn = sqlite3.connect(DATABASE_NAME)
+    conn.row_factory = sqlite3.Row
+    return conn
