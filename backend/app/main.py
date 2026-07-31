@@ -1,6 +1,4 @@
 from datetime import datetime, time
-from dotenv import load_dotenv
-
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,10 +19,7 @@ from .services.ai_service import AIConfigurationError, AIProviderError, generate
 from .services.fairness_engine import calculate_fairness
 from .services.location_service import LocationServiceError, get_route_info
 
-app = FastAPI(
-    title="VeroPay API",
-    version="1.0.0",
-)
+app = FastAPI(title="VeroPay API", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -33,6 +28,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 def seed_reference_data(db: Session) -> None:
     if db.query(User).first() is None:
@@ -59,13 +55,6 @@ def startup() -> None:
         db.close()
 
 
-init_db()
-
-app.include_router(auth_router)
-app.include_router(dashboard_router)
-app.include_router(jobs_router)
-app.include_router(ocr_router)
-
 @app.get("/")
 def root():
     return {"message": "VeroPay API is running"}
@@ -86,15 +75,8 @@ def get_vehicle(vehicle_id: int, db: Session = Depends(get_db)):
 
 @app.post("/api/route-info", response_model=RouteInfoResponse)
 def route_info(payload: RouteInfoRequest):
-    """
-    Given pickup and drop location names, returns real distance (km),
-    estimated duration (minutes), live weather condition, and coordinates.
-    """
     try:
-        result = get_route_info(
-            pickup=payload.pickup,
-            dropoff=payload.dropoff,
-        )
+        result = get_route_info(pickup=payload.pickup, dropoff=payload.dropoff)
     except LocationServiceError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
     return result
