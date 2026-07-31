@@ -1,0 +1,4 @@
+backend/.env
+backend/veropay.db
+__pycache__/
+*.pyc

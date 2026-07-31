@@ -14,6 +14,8 @@ import {
 
 import Layout from "../components/layout/Layout";
 
+const API_URL = "http://127.0.0.1:8000";
+
 
 const suggestions = [
   {
@@ -112,6 +114,7 @@ function Chat() {
 
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [useWebSearch, setUseWebSearch] = useState(false);
 
   const messagesEndRef = useRef(null);
 
@@ -123,7 +126,7 @@ function Chat() {
   }, [messages, isTyping]);
 
 
-  const sendMessage = (customMessage) => {
+  const sendMessage = async (customMessage) => {
     const messageText =
       typeof customMessage === "string"
         ? customMessage
@@ -139,30 +142,49 @@ function Chat() {
     };
 
 
-    setMessages((previous) => [
-      ...previous,
-      userMessage,
-    ]);
+    const conversation = [...messages, userMessage];
+    setMessages(conversation);
 
     setInput("");
     setIsTyping(true);
 
 
-    // Mock AI delay
-    setTimeout(() => {
+    try {
+      const response = await fetch(`${API_URL}/api/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: conversation.map(({ role, content }) => ({ role, content })),
+          use_web_search: useWebSearch,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.detail || "VeroPay AI could not answer right now.");
+      }
+
       const aiMessage = {
         id: Date.now() + 1,
         role: "assistant",
-        content: getMockResponse(messageText),
+        content: data.response,
       };
-
       setMessages((previous) => [
         ...previous,
         aiMessage,
       ]);
-
+    } catch (error) {
+      setMessages((previous) => [
+        ...previous,
+        {
+          id: Date.now() + 1,
+          role: "assistant",
+          content: error.message,
+        },
+      ]);
+    } finally {
       setIsTyping(false);
-    }, 900);
+    }
   };
 
 
@@ -620,6 +642,15 @@ function Chat() {
 
             </form>
 
+            <label className="mt-3 flex items-center justify-center gap-2 text-xs text-gray-500 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={useWebSearch}
+                onChange={(event) => setUseWebSearch(event.target.checked)}
+                className="accent-green-500"
+              />
+              Use web search for current information
+            </label>
 
             <p className="text-center text-xs text-gray-600 mt-3">
               VeroPay AI can make mistakes. Verify important payment information.

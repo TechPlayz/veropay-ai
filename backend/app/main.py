@@ -5,12 +5,25 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
 from .database import Base, SessionLocal, engine, get_db
-from .models import Ride, User, Vehicle
-from .schemas import RideAnalysisResponse, RideAnalyzeRequest, VehicleResponse
+from .fairness_models import Ride, User, Vehicle
+from .schemas import (
+    ChatRequest,
+    ChatResponse,
+    RideAnalysisResponse,
+    RideAnalyzeRequest,
+    VehicleResponse,
+)
+from .services.ai_service import AIConfigurationError, AIProviderError, generate_chat_response
 from .services.fairness_engine import calculate_fairness
 
-app = FastAPI(title="VeroPay Fairness API", version="1.0.0")
-app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173"], allow_credentials=True, allow_methods=["GET", "POST"], allow_headers=["Content-Type", "Authorization"])
+app = FastAPI(title="VeroPay API", version="1.0.0")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type", "Authorization"],
+)
 
 
 def seed_reference_data(db: Session) -> None:
@@ -37,26 +50,10 @@ def startup() -> None:
     finally:
         db.close()
 
-<<<<<<< HEAD
-=======
-from routes.jobs import router as jobs_router
-from routes.ocr import router as ocr_router
-
-
-app = FastAPI(
-    title="VeroPay API",
-    version="1.0.0",
-)
->>>>>>> 33ed76129b64975d1f4facaba2e464bffbc7307d
-
-app.include_router(jobs_router)
-app.include_router(ocr_router)
-
 
 @app.get("/")
 def root():
-<<<<<<< HEAD
-    return {"message": "VeroPay fairness API is running"}
+    return {"message": "VeroPay API is running"}
 
 
 @app.get("/api/vehicles", response_model=list[VehicleResponse])
@@ -77,6 +74,7 @@ def analyze_ride(payload: RideAnalyzeRequest, db: Session = Depends(get_db)):
     vehicle = db.get(Vehicle, payload.vehicle_id)
     if vehicle is None:
         raise HTTPException(status_code=404, detail="Vehicle not found")
+
     mileage = payload.mileage if payload.mileage is not None else vehicle.average_mileage
     maintenance = payload.maintenance_cost_per_km if payload.maintenance_cost_per_km is not None else vehicle.maintenance_cost_per_km
     try:
@@ -130,6 +128,29 @@ def get_dashboard(db: Session = Depends(get_db)):
         "total_rides": count,
         "rejected_ride_suggestions": sum(ride.recommendation == "Reject" for ride in rides),
     }
-=======
-    return {"message": "Backend running"}
->>>>>>> 33ed76129b64975d1f4facaba2e464bffbc7307d
+
+
+@app.post("/api/chat", response_model=ChatResponse)
+def chat(payload: ChatRequest, db: Session = Depends(get_db)):
+    recent_rides = db.query(Ride).order_by(Ride.created_at.desc()).limit(5).all()
+    if recent_rides:
+        ride_context = "\n".join(
+            f"{ride.platform}: offered Rs. {ride.offered_fare:.2f}, expected Rs. {ride.expected_fare:.2f}, "
+            f"fairness {ride.fairness_score:.0f}%, recommendation {ride.recommendation}."
+            for ride in recent_rides
+        )
+    else:
+        ride_context = "No rides have been analysed yet."
+
+    try:
+        answer = generate_chat_response(
+            messages=[message.model_dump() for message in payload.messages],
+            ride_context=ride_context,
+            use_web_search=payload.use_web_search,
+        )
+    except AIConfigurationError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+    except AIProviderError as error:
+        raise HTTPException(status_code=502, detail=str(error)) from error
+
+    return ChatResponse(response=answer)
