@@ -6,7 +6,7 @@ import jwt
 from fastapi import Header, HTTPException, status
 from passlib.context import CryptContext
 
-from database import get_db
+from app.database import get_db
 
 
 JWT_SECRET = os.getenv("VEROPAY_JWT_SECRET", "dev-only-veropay-secret-change-me")

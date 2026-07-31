@@ -1,8 +1,8 @@
 import sqlite3
 from typing import Optional
 
-from database import get_db
-from services.auth_service import hash_password
+from app.database import get_db
+from app.services.auth_service import hash_password
 
 
 def _clean_optional_text(value: Optional[str]) -> Optional[str]:

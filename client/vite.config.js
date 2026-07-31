@@ -7,4 +7,11 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  server: {
+    proxy: {
+      '/api': 'http://localhost:8000',
+      '/jobs': 'http://localhost:8000',
+      '/ocr': 'http://localhost:8000',
+    },
+  },
 })

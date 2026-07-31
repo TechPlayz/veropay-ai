@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 
-from services import auth_service, dashboard_service
+from app.services import auth_service, dashboard_service
 
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])

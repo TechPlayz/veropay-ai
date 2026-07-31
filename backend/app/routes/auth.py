@@ -5,8 +5,8 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 
-from models.user import AuthResponse, LoginRequest, UserResponse, VehicleInfo
-from services import auth_service, user_service, vehicle_service
+from app.models.user import AuthResponse, LoginRequest, UserResponse, VehicleInfo
+from app.services import auth_service, user_service, vehicle_service
 
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])

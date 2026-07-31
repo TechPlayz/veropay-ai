@@ -1,7 +1,7 @@
 from typing import Any, Dict, List, Optional
 
-from database import get_db
-from models.job import JobCreate
+from app.database import get_db
+from app.models.job import JobCreate
 
 
 def _row_to_dict(row) -> Dict[str, Any]:

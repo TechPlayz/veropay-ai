@@ -1,10 +1,13 @@
 from fastapi import FastAPI
+from dotenv import load_dotenv
 
-from init_db import init_db
-from routes.auth import router as auth_router
-from routes.dashboard import router as dashboard_router
-from routes.jobs import router as jobs_router
-from routes.ocr import router as ocr_router
+load_dotenv()
+
+from app.init_db import init_db
+from app.routes.auth import router as auth_router
+from app.routes.dashboard import router as dashboard_router
+from app.routes.jobs import router as jobs_router
+from app.routes.ocr import router as ocr_router
 
 
 app = FastAPI(

@@ -1,7 +1,7 @@
 from datetime import date
 from typing import Optional
 
-from database import get_db
+from app.database import get_db
 
 
 def get_dashboard(user_id: int) -> dict:

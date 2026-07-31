@@ -3,8 +3,8 @@ from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 
-from models.job import JobCreate, JobResponse
-from services import auth_service, job_service
+from app.models.job import JobCreate, JobResponse
+from app.services import auth_service, job_service
 
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
