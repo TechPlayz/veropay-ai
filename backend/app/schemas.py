@@ -52,6 +52,21 @@ class RideAnalysisResponse(BaseModel):
     created_at: datetime
 
 
+class RouteInfoRequest(BaseModel):
+    pickup: str = Field(min_length=3, max_length=200)
+    dropoff: str = Field(min_length=3, max_length=200)
+
+
+class RouteInfoResponse(BaseModel):
+    distance_km: float
+    duration_minutes: int
+    weather: str
+    pickup_display: str
+    dropoff_display: str
+    pickup_lat: float
+    pickup_lon: float
+
+
 class ChatMessage(BaseModel):
     role: Literal["user", "assistant"]
     content: str = Field(min_length=1, max_length=4000)

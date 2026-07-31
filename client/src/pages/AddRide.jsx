@@ -1,66 +1,81 @@
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Upload,
-  Image,
+  MapPin,
+  Navigation,
   Sparkles,
   ArrowRight,
   ShieldCheck,
-  X,
   Loader2,
+  CloudSun,
 } from "lucide-react";
 import Layout from "../components/layout/Layout";
-import { extractRideOcr } from "../api/ocr";
-import { createJob } from "../api/jobs";
+
+const API_URL = "http://127.0.0.1:8000";
+
+const PLATFORMS = ["Swiggy", "Zomato", "Uber", "Rapido", "Blinkit", "Porter", "Other"];
+const TRAFFIC_LEVELS = ["Low", "Medium", "High", "Very High"];
+const WEATHER_OPTIONS = ["Sunny", "Rain", "Storm", "Extreme Heat"];
+
+const inputClass =
+  "w-full bg-[#1B263B] border border-gray-700 rounded-xl px-4 py-3.5 text-white placeholder:text-gray-600 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/10 transition";
 
 function AddRide() {
-  const fileInputRef = useRef(null);
   const navigate = useNavigate();
-
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [ocrLoading, setOcrLoading] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
+  const vehicleInputRef = useRef(null);
 
   const [form, setForm] = useState({
+    pickup: "",
+    dropoff: "",
     platform: "Swiggy",
-    fare: "",
-    distance: "",
-    duration: "",
-    shift: "",
-    ride_date: new Date().toISOString().slice(0, 10),
+    vehicle_id: "1",
+    offered_fare: "",
+    distance_km: "",
+    duration_minutes: "",
+    traffic_level: "Medium",
+    weather: "Sunny",
+    fuel_price: "103",
+    city: "",
   });
 
-  const handleFileSelect = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    setSelectedFile(file);
-    setOcrLoading(true);
-    setError("");
-    try {
-      const res = await extractRideOcr(file);
-      const data = res.data;
-      setForm((prev) => ({
-        ...prev,
-        fare: data.fare ?? prev.fare,
-        distance: data.distance ?? prev.distance,
-        duration: data.duration ?? prev.duration,
-      }));
-    } catch {
-      setError("Could not extract ride details from screenshot. Please fill in manually.");
-    } finally {
-      setOcrLoading(false);
-    }
-  };
-
-  const removeFile = () => {
-    setSelectedFile(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
+  const [routeLoading, setRouteLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [routeInfo, setRouteInfo] = useState(null);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const fetchRouteInfo = async () => {
+    if (!form.pickup.trim() || !form.dropoff.trim()) {
+      setError("Enter both pickup and drop locations first.");
+      return;
+    }
+    setError("");
+    setRouteLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/route-info`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pickup: form.pickup, dropoff: form.dropoff }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Could not fetch route info.");
+      setRouteInfo(data);
+      setForm((prev) => ({
+        ...prev,
+        distance_km: String(data.distance_km),
+        duration_minutes: String(data.duration_minutes),
+        weather: data.weather,
+        city: data.pickup_display.split(",").slice(-2).join(",").trim(),
+      }));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setRouteLoading(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -68,37 +83,45 @@ function AddRide() {
     setError("");
     setSubmitting(true);
     try {
-      await createJob({
-        platform: form.platform,
-        fare: parseFloat(form.fare),
-        distance: parseFloat(form.distance),
-        duration: parseInt(form.duration, 10),
-        shift: form.shift || null,
-        ride_date: form.ride_date,
+      const res = await fetch(`${API_URL}/api/rides/analyze`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          vehicle_id: parseInt(form.vehicle_id),
+          platform: form.platform,
+          city: form.city || form.pickup,
+          offered_fare: parseFloat(form.offered_fare),
+          distance_km: parseFloat(form.distance_km),
+          duration_minutes: parseInt(form.duration_minutes),
+          traffic_level: form.traffic_level,
+          weather: form.weather,
+          fuel_price: parseFloat(form.fuel_price),
+        }),
       });
-      navigate("/history");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Failed to analyze ride.");
+      navigate(`/ride-analysis/${data.id}`, { state: { ride: data } });
     } catch (err) {
-      setError(err.response?.data?.detail || "Failed to save ride. Please try again.");
+      setError(err.message);
     } finally {
       setSubmitting(false);
     }
   };
 
-  const inputClass = "w-full bg-[#1B263B] border border-gray-700 rounded-xl px-4 py-3.5 text-white placeholder:text-gray-600 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/10 transition";
-
   return (
     <Layout>
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-3xl mx-auto">
 
         {/* Header */}
         <div className="mb-10">
           <div className="flex items-center gap-2 text-green-400 mb-3">
             <Sparkles size={18} />
-            <span className="text-sm font-semibold">AI Ride Analysis</span>
+            <span className="text-sm font-semibold">REAL-TIME RIDE ANALYSIS</span>
           </div>
           <h1 className="text-4xl font-bold">Analyze a ride</h1>
           <p className="text-gray-400 mt-3">
-            Upload an earnings screenshot or enter the ride details manually.
+            Enter pickup and drop locations — VeroPay will fetch the real road distance,
+            duration and live weather automatically.
           </p>
         </div>
 
@@ -108,161 +131,193 @@ function AddRide() {
           </div>
         )}
 
-        {/* Screenshot Upload */}
-        <div className="bg-[#131C2E] rounded-2xl p-8 border border-white/5">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="bg-green-500/10 p-3 rounded-xl">
-              <Image size={24} className="text-green-400" />
-            </div>
+        <form onSubmit={handleSubmit} className="space-y-6">
+
+          {/* Location Card */}
+          <div className="bg-[#131C2E] rounded-2xl p-7 border border-white/5 space-y-5">
+            <h2 className="font-semibold text-lg flex items-center gap-2">
+              <MapPin size={18} className="text-green-400" />
+              Pickup &amp; Drop
+            </h2>
+
             <div>
-              <h2 className="font-semibold text-lg">Upload earnings screenshot</h2>
-              <p className="text-gray-400 text-sm mt-1">Let AI extract your ride details automatically.</p>
+              <label className="block text-sm font-medium mb-2">Pickup location</label>
+              <input
+                name="pickup"
+                value={form.pickup}
+                onChange={handleChange}
+                placeholder="e.g. Koramangala, Bangalore"
+                className={inputClass}
+                required
+              />
             </div>
-          </div>
 
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/png,image/jpeg,image/jpg,image/webp"
-            onChange={handleFileSelect}
-            className="hidden"
-          />
+            <div>
+              <label className="block text-sm font-medium mb-2">Drop location</label>
+              <input
+                name="dropoff"
+                value={form.dropoff}
+                onChange={handleChange}
+                placeholder="e.g. Indiranagar, Bangalore"
+                className={inputClass}
+                required
+              />
+            </div>
 
-          {!selectedFile ? (
             <button
               type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="w-full border-2 border-dashed border-gray-700 hover:border-green-500/70 rounded-2xl py-12 transition group cursor-pointer"
+              onClick={fetchRouteInfo}
+              disabled={routeLoading}
+              className="w-full flex items-center justify-center gap-2 bg-green-500/10 hover:bg-green-500/20 border border-green-500/30 text-green-400 font-semibold py-3 rounded-xl transition disabled:opacity-50 cursor-pointer"
             >
-              <div className="flex flex-col items-center">
-                <div className="bg-[#1B263B] group-hover:bg-green-500/10 p-4 rounded-2xl transition">
-                  <Upload size={30} className="text-gray-400 group-hover:text-green-400 transition" />
-                </div>
-                <p className="font-semibold mt-5">Drop your screenshot here</p>
-                <p className="text-gray-500 text-sm mt-2">or click to browse</p>
-                <p className="text-gray-600 text-xs mt-4">PNG, JPG or WEBP</p>
-              </div>
+              {routeLoading ? (
+                <><Loader2 size={17} className="animate-spin" /> Fetching route &amp; weather…</>
+              ) : (
+                <><Navigation size={17} /> Get Distance, Duration &amp; Weather</>
+              )}
             </button>
-          ) : (
-            <div className="border border-green-500/20 bg-green-500/5 rounded-2xl p-5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="bg-green-500/10 p-3 rounded-xl">
-                    {ocrLoading
-                      ? <Loader2 size={22} className="text-green-400 animate-spin" />
-                      : <Image size={22} className="text-green-400" />
-                    }
-                  </div>
-                  <div>
-                    <p className="font-semibold">{selectedFile.name}</p>
-                    <p className="text-sm text-gray-400 mt-1">
-                      {ocrLoading ? "Extracting ride details…" : `${(selectedFile.size / 1024 / 1024).toFixed(2)} MB`}
-                    </p>
-                  </div>
+
+            {/* Route result pill */}
+            {routeInfo && (
+              <div className="grid grid-cols-3 gap-3 text-center text-sm">
+                <div className="bg-[#1B263B] rounded-xl py-3 px-2">
+                  <p className="text-gray-500 text-xs mb-1">Distance</p>
+                  <p className="font-bold text-white">{routeInfo.distance_km} km</p>
                 </div>
-                <button type="button" onClick={removeFile}
-                  className="text-gray-400 hover:text-red-400 transition cursor-pointer">
-                  <X size={22} />
-                </button>
+                <div className="bg-[#1B263B] rounded-xl py-3 px-2">
+                  <p className="text-gray-500 text-xs mb-1">Duration</p>
+                  <p className="font-bold text-white">{routeInfo.duration_minutes} min</p>
+                </div>
+                <div className="bg-[#1B263B] rounded-xl py-3 px-2">
+                  <p className="text-gray-500 text-xs mb-1 flex items-center justify-center gap-1">
+                    <CloudSun size={12} /> Weather
+                  </p>
+                  <p className="font-bold text-green-400">{routeInfo.weather}</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Ride Details Card */}
+          <div className="bg-[#131C2E] rounded-2xl p-7 border border-white/5 space-y-5">
+            <h2 className="font-semibold text-lg">Ride details</h2>
+
+            {/* Platform + Vehicle */}
+            <div className="grid md:grid-cols-2 gap-5">
+              <div>
+                <label className="block text-sm font-medium mb-2">Platform</label>
+                <select name="platform" value={form.platform} onChange={handleChange} className={inputClass}>
+                  {PLATFORMS.map((p) => <option key={p}>{p}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Vehicle</label>
+                <select name="vehicle_id" value={form.vehicle_id} onChange={handleChange} className={inputClass}>
+                  <option value="1">Honda Activa 6G</option>
+                  <option value="2">TVS Jupiter</option>
+                  <option value="3">Suzuki Access 125</option>
+                  <option value="4">Hero Splendor Plus</option>
+                  <option value="5">Honda Shine</option>
+                  <option value="6">Bajaj Pulsar 150</option>
+                </select>
               </div>
             </div>
-          )}
 
-          <div className="flex items-center gap-3 mt-5 text-sm text-gray-400">
-            <ShieldCheck size={17} className="text-green-400" />
-            <span>AI will extract fare, distance and duration from your screenshot.</span>
-          </div>
-        </div>
-
-        {/* Divider */}
-        <div className="flex items-center gap-5 my-8">
-          <div className="h-px bg-white/10 flex-1" />
-          <span className="text-gray-500 text-sm font-medium">OR ENTER MANUALLY</span>
-          <div className="h-px bg-white/10 flex-1" />
-        </div>
-
-        {/* Manual Ride Form */}
-        <div className="bg-[#131C2E] rounded-2xl p-8 border border-white/5">
-          <div className="mb-7">
-            <h2 className="text-xl font-semibold">Ride details</h2>
-            <p className="text-gray-400 text-sm mt-1">Enter the information from your completed ride.</p>
-          </div>
-
-          <form className="space-y-6" onSubmit={handleSubmit}>
-
-            {/* Platform */}
+            {/* Fare */}
             <div>
-              <label className="block text-sm font-medium mb-2">Platform</label>
-              <select name="platform" value={form.platform} onChange={handleChange}
-                className={inputClass}>
-                <option>Swiggy</option>
-                <option>Zomato</option>
-                <option>Uber</option>
-                <option>Rapido</option>
-                <option>Blinkit</option>
-                <option>Porter</option>
-                <option>Other</option>
-              </select>
+              <label className="block text-sm font-medium mb-2">Fare offered by platform</label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">₹</span>
+                <input
+                  type="number" name="offered_fare" value={form.offered_fare}
+                  onChange={handleChange} min="0" step="0.01" placeholder="0"
+                  required className={`${inputClass} pl-9`}
+                />
+              </div>
             </div>
 
-            {/* Fare + Distance */}
-            <div className="grid md:grid-cols-2 gap-6">
+            {/* Distance + Duration — auto-filled but editable */}
+            <div className="grid md:grid-cols-2 gap-5">
               <div>
-                <label className="block text-sm font-medium mb-2">Fare received</label>
+                <label className="block text-sm font-medium mb-2">
+                  Distance
+                  <span className="text-gray-500 font-normal ml-1">(auto-filled)</span>
+                </label>
                 <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">₹</span>
-                  <input type="number" name="fare" value={form.fare} onChange={handleChange}
-                    min="0" step="0.01" placeholder="0" required
-                    className={`${inputClass} pl-9`} />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">Distance</label>
-                <div className="relative">
-                  <input type="number" name="distance" value={form.distance} onChange={handleChange}
-                    min="0" step="0.1" placeholder="0.0" required
-                    className={`${inputClass} pr-14`} />
+                  <input
+                    type="number" name="distance_km" value={form.distance_km}
+                    onChange={handleChange} min="0" step="0.1" placeholder="0.0"
+                    required className={`${inputClass} pr-14`}
+                  />
                   <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">km</span>
                 </div>
               </div>
-            </div>
-
-            {/* Duration */}
-            <div>
-              <label className="block text-sm font-medium mb-2">Ride duration</label>
-              <div className="relative">
-                <input type="number" name="duration" value={form.duration} onChange={handleChange}
-                  min="0" placeholder="0" required
-                  className={`${inputClass} pr-20`} />
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">minutes</span>
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Duration
+                  <span className="text-gray-500 font-normal ml-1">(auto-filled)</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="number" name="duration_minutes" value={form.duration_minutes}
+                    onChange={handleChange} min="0" placeholder="0"
+                    required className={`${inputClass} pr-20`}
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">min</span>
+                </div>
               </div>
             </div>
 
-            {/* Ride Date */}
-            <div>
-              <label className="block text-sm font-medium mb-2">Ride date</label>
-              <input type="date" name="ride_date" value={form.ride_date} onChange={handleChange}
-                required className={inputClass} />
+            {/* Traffic + Weather */}
+            <div className="grid md:grid-cols-2 gap-5">
+              <div>
+                <label className="block text-sm font-medium mb-2">Traffic level</label>
+                <select name="traffic_level" value={form.traffic_level} onChange={handleChange} className={inputClass}>
+                  {TRAFFIC_LEVELS.map((t) => <option key={t}>{t}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Weather
+                  <span className="text-gray-500 font-normal ml-1">(auto-filled)</span>
+                </label>
+                <select name="weather" value={form.weather} onChange={handleChange} className={inputClass}>
+                  {WEATHER_OPTIONS.map((w) => <option key={w}>{w}</option>)}
+                </select>
+              </div>
             </div>
 
-            {/* Analyze Button */}
-            <button
-              type="submit"
-              disabled={submitting || ocrLoading}
-              className="w-full bg-green-500 hover:bg-green-400 disabled:opacity-60 text-[#07110B] font-bold py-4 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-green-500/10"
-            >
-              {submitting ? "Saving ride…" : "Save Ride"}
-              {!submitting && <ArrowRight size={19} />}
-            </button>
+            {/* Fuel price */}
+            <div>
+              <label className="block text-sm font-medium mb-2">Current fuel price</label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">₹</span>
+                <input
+                  type="number" name="fuel_price" value={form.fuel_price}
+                  onChange={handleChange} min="0" step="0.01" placeholder="103"
+                  required className={`${inputClass} pl-9`}
+                />
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">/L</span>
+              </div>
+            </div>
+          </div>
 
-          </form>
-        </div>
+          {/* Submit */}
+          <button
+            type="submit"
+            disabled={submitting}
+            className="w-full bg-green-500 hover:bg-green-400 disabled:opacity-60 text-[#07110B] font-bold py-4 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-green-500/10"
+          >
+            {submitting ? "Analyzing…" : "Analyze Ride"}
+            {!submitting && <ArrowRight size={19} />}
+          </button>
 
-        <div className="flex items-center justify-center gap-2 mt-6 text-gray-500 text-sm">
-          <ShieldCheck size={15} />
-          <span>VeroPay helps identify potential pay discrepancies using AI.</span>
-        </div>
+          <div className="flex items-center justify-center gap-2 text-gray-500 text-sm pb-6">
+            <ShieldCheck size={15} />
+            <span>VeroPay uses real road distance and live weather for accurate fare analysis.</span>
+          </div>
 
+        </form>
       </div>
     </Layout>
   );

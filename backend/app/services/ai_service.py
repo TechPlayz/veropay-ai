@@ -8,11 +8,11 @@ load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 
 class AIConfigurationError(Exception):
-    """Raised when the server has no OpenAI API key configured."""
+    """Raised when the server has no Gemini API key configured."""
 
 
 class AIProviderError(Exception):
-    """Raised when OpenAI cannot complete a chat request."""
+    """Raised when Gemini cannot complete a chat request."""
 
 
 SYSTEM_PROMPT = (
@@ -30,48 +30,49 @@ def generate_chat_response(
     ride_context: str,
     use_web_search: bool,
 ) -> str:
-    api_key = os.getenv("OPENAI_API_KEY")
+    api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         raise AIConfigurationError(
-            "AI is not configured yet. Add OPENAI_API_KEY to backend/.env and restart the server."
+            "AI is not configured yet. Add GEMINI_API_KEY to backend/.env and restart the server."
         )
 
     try:
-        from openai import OpenAI
+        import google.generativeai as genai
 
-        client = OpenAI(api_key=api_key)
-        model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+        genai.configure(api_key=api_key)
+        model_name = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
 
-        system_content = (
-            f"{SYSTEM_PROMPT}\n\n"
-            f"Recent ride-analysis context:\n{ride_context}"
+        # Build tools list — Gemini supports Google Search grounding
+        tools = ["google_search_retrieval"] if use_web_search else []
+
+        model = genai.GenerativeModel(
+            model_name=model_name,
+            system_instruction=(
+                f"{SYSTEM_PROMPT}\n\n"
+                f"Recent ride-analysis context:\n{ride_context}"
+            ),
+            tools=tools if tools else None,
         )
 
-        conversation = [
-            {"role": "system", "content": system_content},
-            *messages,
-        ]
+        # Convert messages to Gemini format
+        # Gemini uses "user" and "model" roles (not "assistant")
+        history = []
+        for msg in messages[:-1]:
+            role = "model" if msg["role"] == "assistant" else "user"
+            history.append({"role": role, "parts": [msg["content"]]})
 
-        # web_search_preview tool is available on gpt-4o and gpt-4o-mini via the Responses API.
-        # For the standard Chat Completions API we skip it to stay compatible with all models.
-        if use_web_search:
-            response = client.responses.create(
-                model=model,
-                input=conversation,
-                tools=[{"type": "web_search_preview"}],
-            )
-            answer = response.output_text.strip()
-        else:
-            completion = client.chat.completions.create(
-                model=model,
-                messages=conversation,
-            )
-            answer = (completion.choices[0].message.content or "").strip()
+        chat = model.start_chat(history=history)
+        last_message = messages[-1]["content"]
+        response = chat.send_message(last_message)
 
+        answer = response.text.strip()
         if not answer:
-            raise AIProviderError("The AI service returned an empty response.")
+            raise AIProviderError("Gemini returned an empty response.")
         return answer
+
     except AIConfigurationError:
         raise
     except Exception as error:
-        raise AIProviderError("The AI service could not answer right now. Please try again.") from error
+        raise AIProviderError(
+            "The AI service could not answer right now. Please try again."
+        ) from error
