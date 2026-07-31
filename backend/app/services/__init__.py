@@ -1,1 +1,1 @@
-
+"""Business services for VeroPay."""
